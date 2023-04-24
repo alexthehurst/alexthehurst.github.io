@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Token Game</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="900" height="600"></canvas>
+    <br>
+    <button id="resetButton">Reset</button>
+    <button id="helperButton">Toggle Helper Mode</button>
+    <script >
+
+const numRows = 6;
+const numCols = 9;
+
+const canvas = document.getElementById('gameCanvas');
+
+let cellSize;
+let tokenRadius;
+
+const ctx = canvas.getContext('2d');
+const resetButton = document.getElementById('resetButton');
+
+const helperButton = document.getElementById('helperButton');
+let helperMode = false;
+
+helperButton.addEventListener('click', () => {
+    helperMode = !helperMode;
+});
+
+let dragging = false;
+let draggedToken = null;
+
+
+class Token {
+    constructor(x, y, color) {
+        this.x = x;
+        this.y = y;
+        this.color = color;
+    }
+}
+
+const tokens = [];
+for (let i = 0; i < numRows; i++) {
+    tokens.push(new Token(0, i, 'blue'));
+    tokens.push(new Token(numCols - 1, i, 'red'));
+}
+
+function drawHighlightedCell(x, y) {
+    ctx.fillStyle = 'rgba(255, 255, 0, 0.3)';
+    ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+}
+
+function drawGrid() {
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 1;
+
+    for (let i = 1; i < numRows; i++) {
+        ctx.beginPath();
+        ctx.moveTo(0, i * cellSize);
+        ctx.lineTo(canvas.width, i * cellSize);
+        ctx.stroke();
+    }
+
+    for (let i = 1; i < numCols; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * cellSize, 0);
+        ctx.lineTo(i * cellSize, canvas.height);
+        ctx.stroke();
+    }
+}
+
+function drawToken(token, opacity = 1, canPlace = true) {
+    ctx.beginPath();
+    ctx.arc((token.x + 0.5) * cellSize, (token.y + 0.5) * cellSize, tokenRadius, 0, 2 * Math.PI);
+    ctx.fillStyle = token.color;
+    ctx.globalAlpha = opacity;
+    ctx.fill();
+
+    if (!canPlace) {
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = 'black';
+        ctx.strokeRect(token.x * cellSize + 5, token.y * cellSize + 5, cellSize - 10, cellSize - 10);
+    }
+
+    ctx.globalAlpha = 1;
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawGrid();
+
+    for (const token of tokens) {
+        drawToken(token);
+    }
+}
+
+function getCell(x, y) {
+    return {
+        x: Math.floor(x / cellSize),
+        y: Math.floor(y / cellSize)
+    };
+}
+
+function findTokenAt(cellX, cellY) {
+    return tokens.find(token => token.x === cellX && token.y === cellY);
+}
+
+
+function resizeCanvas() {
+    const maxWidth = window.innerWidth * 0.9;
+    const maxHeight = window.innerHeight * 0.6;
+    const aspectRatio = canvas.width / canvas.height;
+
+    if (maxWidth / maxHeight > aspectRatio) {
+        canvas.width = maxHeight * aspectRatio;
+        canvas.height = maxHeight;
+    } else {
+        canvas.width = maxWidth;
+        canvas.height = maxWidth / aspectRatio;
+    }
+
+    cellSize = Math.min(canvas.width / numCols, canvas.height / numRows);
+    tokenRadius = cellSize * 0.4;
+
+    draw();
+}
+
+
+function handleMouseDown(e) {
+    const cell = getCell(e.offsetX, e.offsetY);
+    const token = findTokenAt(cell.x, cell.y);
+
+    if (token) {
+        dragging = true;
+        draggedToken = token;
+    }
+}
+
+function handleMouseMove(e) {
+    if (dragging) {
+        const cell = getCell(e.offsetX, e.offsetY);
+        const canPlace = canPlaceToken(draggedToken, cell.x, cell.y, draggedToken.x, draggedToken.y);
+
+        draw();
+
+        if (helperMode) {
+            for (let i = 0; i < numRows; i++) {
+                for (let j = 0; j < numCols; j++) {
+                    if (canPlaceToken(draggedToken, j, i, draggedToken.x, draggedToken.y)) {
+                        drawHighlightedCell(j, i);
+                    }
+                }
+            }
+        }
+
+        drawToken({ ...draggedToken, x: e.offsetX / cellSize - 0.5, y: e.offsetY / cellSize - 0.5 }, 0.5, canPlace);
+    }
+}
+
+function handleMouseUp(e) {
+    if (e) {
+        const cell = getCell(e.offsetX, e.offsetY);
+        const droppedToken = { ...draggedToken, x: e.offsetX / cellSize - 0.5, y: e.offsetY / cellSize - 0.5 };
+
+        if (canPlaceToken(draggedToken, cell.x, cell.y, draggedToken.x, draggedToken.y)) {
+            animateToken(draggedToken, droppedToken.x, droppedToken.y, cell.x, cell.y, 300);
+        } else {
+            animateToken(draggedToken, droppedToken.x, droppedToken.y, draggedToken.x, draggedToken.y, 300);
+        }
+    }
+
+    dragging = false;
+    draggedToken = null;
+}
+
+
+function handleTouchStart(e) {
+    e.preventDefault(); // Prevent scrolling while interacting with the canvas
+    const touch = e.touches[0];
+    const offsetX = touch.clientX - canvas.getBoundingClientRect().left;
+    const offsetY = touch.clientY - canvas.getBoundingClientRect().top;
+    handleMouseDown({ offsetX, offsetY });
+}
+
+function handleTouchMove(e) {
+    e.preventDefault(); // Prevent scrolling while interacting with the canvas
+    const touch = e.touches[0];
+    const offsetX = touch.clientX - canvas.getBoundingClientRect().left;
+    const offsetY = touch.clientY - canvas.getBoundingClientRect().top;
+    handleMouseMove({ offsetX, offsetY });
+}
+
+function handleTouchEnd(e) {
+    e.preventDefault(); // Prevent scrolling while interacting with the canvas
+    const touch = e.changedTouches[0];
+    const offsetX = touch.clientX - canvas.getBoundingClientRect().left;
+    const offsetY = touch.clientY - canvas.getBoundingClientRect().top;
+    handleMouseUp({ offsetX, offsetY });
+}
+
+
+canvas.addEventListener('mousedown', handleMouseDown);
+canvas.addEventListener('mousemove', handleMouseMove);
+canvas.addEventListener('mouseup', handleMouseUp);
+
+
+
+
+function animateToken(token, startX, startY, targetX, targetY, duration, startTime = null) {
+    const startOpacity = 0.5;
+    const endOpacity = 1;
+
+    function animate(time) {
+        if (!startTime) startTime = time;
+        const progress = Math.min((time - startTime) / duration, 1);
+
+        token.x = startX + (targetX - startX) * progress;
+        token.y = startY + (targetY - startY) * progress;
+        const currentOpacity = startOpacity + (endOpacity - startOpacity) * progress;
+
+        draw();
+        drawToken(token, true, currentOpacity);
+
+        if (progress < 1) {
+            requestAnimationFrame(animate);
+        } else {
+            token.x = targetX;
+            token.y = targetY;
+            draw();
+        }
+    }
+
+    requestAnimationFrame(animate);
+}
+
+canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+
+resetButton.addEventListener('click', () => {
+    tokens.length = 0;
+    for (let i = 0; i < numRows; i++) {
+        tokens.push(new Token(0, i, 'blue'));
+        tokens.push(new Token(numCols - 1, i, 'red'));
+    }
+    draw();
+});
+
+
+function canPlaceToken(token, cellX, cellY, origX, origY) {
+    // Basic rule: a token cannot be placed on a square that another token occupies
+    if (findTokenAt(cellX, cellY)) {
+        return false;
+    }
+
+    // Tokens may only move away from their starting position
+    if ((token.color === 'blue' && cellX < origX) || (token.color === 'red' && cellX > origX)) {
+        return false;
+    }
+
+    // Tokens may only move up to one square at a time. Diagonal is allowed.
+    if (Math.abs(cellX - origX) > 1 || Math.abs(cellY - origY) > 1) {
+        return false;
+    }
+
+    // Add additional rules here
+
+    return true;
+}
+
+function distance(x1, y1, x2, y2) {
+    return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+draw();
+
+    </script>
+</body>
+</html>

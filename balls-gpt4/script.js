@@ -3,8 +3,8 @@ const ctx = canvas.getContext('2d');
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-const radius = 70;
-const angleDecrement = (2 * Math.PI) / 600;
+const radius = 40;
+const angleDecrement = (2 * Math.PI) / 120;
 
 function randomPosition() {
   const x = Math.floor(Math.random() * (canvas.width - 2 * radius)) + radius;
@@ -12,19 +12,15 @@ function randomPosition() {
   return { x, y };
 }
 
-const circles = [
-  { body: null, angle: 2 * Math.PI, color: 'red' },
-  { body: null, angle: 2 * Math.PI, color: 'blue' },
-  { body: null, angle: 2 * Math.PI, color: 'green' },
-  { body: null, angle: 2 * Math.PI, color: 'yellow' },
-  { body: null, angle: 2 * Math.PI, color: 'purple' }
-];
+const colors = ['red', 'blue', 'green', 'yellow', 'purple'];
 
-const numCircles = 10;
+const circles = [];
+
+const numCircles = 120;
 
 for (let i = 0; i<numCircles; i++) {
   circles.push(
-    { body: null, angle: 2 * Math.PI, color: 'red' },
+    { body: null, angle: 2 * Math.PI, color: colors[i % colors.length] },
   )
 }
 
@@ -46,8 +42,8 @@ circles.forEach(circle => {
 // Add ground to the world
 
 const ground = Matter.Bodies.rectangle(canvas.width / 2, canvas.height, canvas.width, 10, { isStatic: true });
-const rightWall = Matter.Bodies.rectangle(0, canvas.height / 2, 10, canvas.height, { isStatic: true });
-const leftWall = Matter.Bodies.rectangle(canvas.width, canvas.height / 2, 10, canvas.height, { isStatic: true });
+const rightWall = Matter.Bodies.rectangle(0, canvas.height / 2, 10, canvas.height * 4, { isStatic: true });
+const leftWall = Matter.Bodies.rectangle(canvas.width, canvas.height / 2, 10, canvas.height * 4, { isStatic: true });
 
 
 Matter.World.add(world, ground);
